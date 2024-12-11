@@ -1,15 +1,36 @@
 import numpy as np
 import pickle
+
+### import packages from sklearn
+from sklearn.decomposition import PCA
+# from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
+# from sklearn.neural_network import MLPClassifier
+
+### import packages from self-defined model
+from model.mlp import MLPClassifier
+
 import time
-from sklearn.decomposition import PCA
-# from sklearn.decomposition import TruncatedSVD
 import argparse
+import sys
+from datetime import datetime
+
+class Tee:
+    def __init__(self, file):
+        self.file = file
+        self.stdout = sys.stdout  # 保存原始 stdout
+
+    def write(self, message):
+        self.file.write(message)  # 写入文件
+        self.stdout.write(message)  # 输出到终端
+
+    def flush(self):
+        self.file.flush()
+        self.stdout.flush()
 
 def main(args):
     with open('data/train_feature.pkl', 'rb') as f:
@@ -69,12 +90,23 @@ def main(args):
     elif args.model == 'KNN':
         model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
-        model = MLPClassifier(hidden_layer_sizes=(100),    # 隐藏层
-                                activation='relu',         # 激活函数：ReLU
-                                solver='adam',             # 优化器：Adam
-                                max_iter=200,              # 最大迭代次数
-                                random_state=42,
-                                alpha=0.05)                # 正则化参数
+        MLP_args = {
+            'input_size': X_train.shape[1],
+            'output_size': 20,
+            'hidden_size': 1024,
+            'drop_rate': 0.9,
+            'weight_decay': 1e-7,
+            'lr': 1e-3,
+            'epoch_num': 20
+        }
+        model = MLPClassifier(**MLP_args)
+        print(f"MLP model with args {MLP_args}")
+        # model = MLPClassifier(hidden_layer_sizes=(100),    # 隐藏层
+        #                         activation='relu',         # 激活函数：ReLU
+        #                         solver='adam',             # 优化器：Adam
+        #                         max_iter=200,              # 最大迭代次数
+        #                         random_state=42,
+        #                         alpha=0.05)                # 正则化参数
     else:
         raise ValueError('model not supported')
     
@@ -112,5 +144,12 @@ if __name__ == '__main__':
     parser.add_argument('--load_pca', action='store_true', help='Load PCA feature (default: False)')
     parser.add_argument('--save_pca', action='store_true', help='Save PCA feature (default: False)')
     parser.add_argument('--test', action='store_true', help='Run on test set and output csv file (default: False)')
+    parser.add_argument('--log_file', type=str, default="log.txt", help='Log file (default: log.txt)')
     args = parser.parse_args()
+    log_file = open(args.log_file, "a")
+    sys.stdout = Tee(log_file)
+    print("----------------------------------------------------------------------------------------------------")
+    print(f"{datetime.now()} run with arguments: {args}")
     main(args)
+    sys.stdout = sys.__stdout__
+    log_file.close()
