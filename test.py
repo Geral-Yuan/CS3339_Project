@@ -24,6 +24,21 @@ def main(args):
     X_train = np.sqrt(1-(1-X_train)**2)
     
     y_train = np.load('data/train_labels.npy')
+    
+    import warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    
+    from imblearn.over_sampling import SMOTE
+
+    print("Original data shape:", X_train.shape, y_train.shape)
+    X_train, y_train = SMOTE(random_state=42).fit_resample(X_train, y_train) # To figure out good seed
+    print("SMOTE data shape:", X_train.shape, y_train.shape)
+    
+    label_distribution = []
+    for i in range(20):
+        label_distribution.append((y_train == i).sum().item())
+        
+    print("Label distribution:", label_distribution)
         
     with open('data/test_feature.pkl', 'rb') as f:
         X_test = pickle.load(f).toarray()
@@ -66,12 +81,12 @@ def main(args):
         MLP_args = {
             'input_size': X_train.shape[1],
             'output_size': 20,
-            'hidden_size': 384,
-            'drop_rate': 0.9,
-            'weight_decay': 5e-7,
+            'hidden_size': 640,
+            'drop_rate': 0.95,
+            'weight_decay': 3e-8,
             'lr': 1e-3,
-            'batch_size': 32,
-            'epoch_num': 25,
+            'batch_size': 256,
+            'epoch_num': 50,
             'mask_prob': 0
         }
         model = MLPClassifier(**MLP_args)
@@ -92,6 +107,12 @@ def main(args):
         f.write('ID,label\n')
         for i in range(len(y_test)):
             f.write(f'{i},{y_test[i]}\n')
+    
+    label_distribution = []
+    for i in range(20):
+        label_distribution.append((y_test == i).sum().item())
+        
+    print("Label distribution:", label_distribution)
             
     print(f"Test result has been saved to submission/res_{args.model}.csv")
     
