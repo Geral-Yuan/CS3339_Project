@@ -22,6 +22,7 @@ def main(args):
         X_train = pickle.load(f).toarray()
         
     X_train = np.sqrt(1-(1-X_train)**2)
+    # X_train = np.sqrt(X_train)
     
     y_train = np.load('data/train_labels.npy')
     
@@ -29,7 +30,6 @@ def main(args):
     warnings.filterwarnings("ignore", category=FutureWarning)
     
     from imblearn.over_sampling import SMOTE
-
     print("Original data shape:", X_train.shape, y_train.shape)
     X_train, y_train = SMOTE(random_state=42).fit_resample(X_train, y_train) # To figure out good seed
     print("SMOTE data shape:", X_train.shape, y_train.shape)
@@ -44,6 +44,7 @@ def main(args):
         X_test = pickle.load(f).toarray()
         
     X_test= np.sqrt(1-(1-X_test)**2)
+    # X_test = np.sqrt(X_test)
     
     if args.use_pca:
         if args.load_pca:
@@ -86,22 +87,26 @@ def main(args):
             'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 50,
+            'epoch_num': 70,
             'mask_prob': 0
         }
         model = MLPClassifier(**MLP_args)
         print(f"MLP model with args {MLP_args}")
     else:
         raise ValueError('model not supported')
-    
-    start_time = time.time()
-    model.fit(X_train, y_train)
-    end_time = time.time()
-    print(f"Train time: {end_time - start_time:.2f}s")
-    
-    train_accuracy = model.score(X_train, y_train)
-    print(f"Accuracy on training set: {train_accuracy:.4f}")
-    
+        
+    if args.saved_model is None:
+        start_time = time.time()
+        model.fit(X_train, y_train)
+        end_time = time.time()
+        print(f"Train time: {end_time - start_time:.2f}s")
+        
+        train_accuracy = model.score(X_train, y_train)
+        print(f"Accuracy on training set: {train_accuracy:.4f}")
+    else:
+        model.load_state_dict(torch.load(args.saved_model))
+        print(f"Model has been loaded from {args.saved_model}")
+
     y_test = model.predict(X_test)
     with open(f'submission/res_{args.model}.csv', 'w') as f:
         f.write('ID,label\n')
@@ -123,5 +128,6 @@ if __name__ == '__main__':
     parser.add_argument('--pca_dim', type=int, default=500, help='PCA dimension (default: 500)')
     parser.add_argument('--load_pca', action='store_true', help='Load PCA feature (default: False)')
     parser.add_argument('--save_pca', action='store_true', help='Save PCA feature (default: False)')
+    parser.add_argument('--saved_model', type=str, default=None, help='Use saved model (default: None)')
     args = parser.parse_args()
     main(args)

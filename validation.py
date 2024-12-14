@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 # from sklearn.decomposition import TruncatedSVD
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
+# from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 # from sklearn.neural_network import MLPClassifier
 
@@ -16,13 +16,16 @@ from itertools import product
 
 ### import packages from self-defined model
 from model.mlp import MLPClassifier
+from model.lr import LogisticRegression
 
 import time
 
 def cross_val(args, X, y, param, k_folds=5):
+    print(f"Cross validation with parameters: {param}")
     kfold = KFold(n_splits=k_folds, shuffle=True, random_state=42)
     train_accuracy_list = []
     val_accuracy_list = []
+    best_accuracy = 0
     for fold, (train_idx, val_idx) in enumerate(kfold.split(X)):
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
@@ -37,8 +40,11 @@ def cross_val(args, X, y, param, k_folds=5):
         # print("BorderlineSMOTE data shape:", X_train.shape, y_train.shape)
         
         # from imblearn.over_sampling import SMOTE
+        # random_state = 114514
+        # print("SMOTE random state:", random_state)
+        # smote = SMOTE(random_state=random_state)
         # print("Original data shape:", X_train.shape, y_train.shape)
-        # X_train, y_train = SMOTE().fit_resample(X_train, y_train)
+        # X_train, y_train = smote.fit_resample(X_train, y_train)
         # print("SMOTE data shape:", X_train.shape, y_train.shape)
         
         if args.use_pca:
@@ -62,17 +68,15 @@ def cross_val(args, X, y, param, k_folds=5):
 
         torch.manual_seed(2333)
         if args.model == 'RndFrst':
-            model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42)
-        elif args.model == 'SVM-l':
-            model = SVC(kernel='linear')
-        elif args.model == 'SVM-r':
-            model = SVC(kernel='rbf')
-        elif args.model == 'SVM-s':
-            model = SVC(kernel='sigmoid', coef0=1)
+            model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42, **param)
+        elif args.model == 'SVM':
+            model = SVC(**param)
+        # elif args.model == 'mySVM':
+        #     model = KernelSVMClassifier(**param)
         elif args.model == 'LogReg':
-            model = LogisticRegression(penalty='l1', solver='liblinear')
+            model = LogisticRegression(num_classes=20, **param)
         elif args.model == 'KNN':
-            model = KNeighborsClassifier(n_neighbors=15)
+            model = KNeighborsClassifier(**param)
         elif args.model == 'MLP':
             model = MLPClassifier(input_size=X_train.shape[1], output_size=20, **param)
         else:
@@ -83,6 +87,11 @@ def cross_val(args, X, y, param, k_folds=5):
         train_accuracy_list.append(train_accuracy)
         val_accuracy = model.score(X_val, y_val)
         val_accuracy_list.append(val_accuracy)
+        if args.save_model:
+            if val_accuracy > best_accuracy:
+                best_accuracy = val_accuracy
+                torch.save(model.state_dict(), f"saved_models/{args.model}_{args.timestamp}.pt")
+        print(f"Fold {fold+1}/{k_folds}, Train accuracy: {train_accuracy:.6f}, Validation accuracy: {val_accuracy:.6f}")
     
     return np.mean(train_accuracy_list), np.mean(val_accuracy_list)
         
@@ -98,6 +107,7 @@ def grid_search(args, X, y, params, id):
     for combination in product(*values):
         param_combination = dict(zip(keys, combination))
         train_acc, val_acc = cross_val(args, X, y, param_combination)
+        print(f"Train accuracy: {train_acc:.6f}, Validation accuracy: {val_acc:.6f}")
         if val_acc > best_score:
             best_score = val_acc
             best_params = param_combination
@@ -115,51 +125,48 @@ def grid_search(args, X, y, params, id):
 
 def train_val(args, X, y, id=0):
     if args.model == 'RndFrst':
-        pass
+        params = {}
         # model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42)
-    elif args.model == 'SVM-l':
-        pass
-        # model = SVC(kernel='linear')
-    elif args.model == 'SVM-r':
-        pass
-        # model = SVC(kernel='rbf')
-    elif args.model == 'SVM-s':
-        pass
-        # model = SVC(kernel='sigmoid', coef0=1)
+    elif args.model == 'SVM':
+        params = {
+            'kernel': ['linear', 'rbf', 'sigmoid']
+        }
+    # elif args.model == 'mySVM':
+    #     params = {
+    #         'kernel': 'rbf'
+    #     }
     elif args.model == 'LogReg':
-        pass
+        params = {
+            'lr': 100,
+            'num_iterations': 1000
+        }
         # model = LogisticRegression(penalty='l1', solver='liblinear')
     elif args.model == 'KNN':
-        pass
+        params = {
+            'n_neighbors': 15
+        }
         # model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
-        # params = {
-        #     'hidden_size': [384, 512, 640],
-        #     'drop_rate': [0.9, 0.95, 0.98],
-        #     'weight_decay': [3e-7, 1e-7, 3e-8],
-        #     'lr': [1e-3],
-        #     'batch_size': [256],
-        #     'epoch_num': [40, 50],
-        #     'mask_prob': [0]
-        # }
-        # params = {
-        #     'hidden_size': [512, 1024],
-        #     'drop_rate': 0.9,
-        #     'weight_decay': [3e-7, 1e-7],
-        #     'lr': [1e-3, 5e-4],
-        #     'batch_size': [128, 256],
-        #     'epoch_num': [30, 50, 100, 200],
-        #     'mask_prob': 0
-        # }
         params = {
             'hidden_size': 640,
             'drop_rate': 0.95,
             'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 50,
+            'epoch_num': 70,
             'mask_prob': 0
         }
+        # -------- resNetMLP params: --------
+        # params = {
+        #     'resNet': True,
+        #     'hidden_size': 640,
+        #     'drop_rate': 0.95,
+        #     'weight_decay': 3e-8,
+        #     'lr': 1e-4,
+        #     'batch_size': 128,
+        #     'epoch_num': 400,
+        #     'mask_prob': 0
+        # }
         
         print(f"Grid search with parameters: {params}")
     else:
