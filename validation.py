@@ -33,19 +33,19 @@ def cross_val(args, X, y, param, k_folds=5):
         # import warnings
         # warnings.filterwarnings("ignore", category=FutureWarning)
         
+        # from imblearn.over_sampling import SMOTE
+        # random_state = 114514
+        # print("SMOTE random state:", random_state)
+        # smote = SMOTE(random_state=random_state, k_neighbors=3)
+        # print("Original data shape:", X_train.shape, y_train.shape)
+        # X_train, y_train = smote.fit_resample(X_train, y_train)
+        # print("SMOTE data shape:", X_train.shape, y_train.shape)
+        
         # from imblearn.over_sampling import BorderlineSMOTE
         # borderline_smote = BorderlineSMOTE(random_state=42)
         # print("Original data shape:", X_train.shape, y_train.shape)
         # X_train, y_train = borderline_smote.fit_resample(X_train, y_train)
         # print("BorderlineSMOTE data shape:", X_train.shape, y_train.shape)
-        
-        # from imblearn.over_sampling import SMOTE
-        # random_state = 114514
-        # print("SMOTE random state:", random_state)
-        # smote = SMOTE(random_state=random_state)
-        # print("Original data shape:", X_train.shape, y_train.shape)
-        # X_train, y_train = smote.fit_resample(X_train, y_train)
-        # print("SMOTE data shape:", X_train.shape, y_train.shape)
         
         if args.use_pca:
             if args.load_pca:
@@ -66,6 +66,7 @@ def cross_val(args, X, y, param, k_folds=5):
                     np.save(f"PCA_feat/val/X_train_pca_{k_folds}folds_{args.pca_dim}_{fold}.npy", X_train)
                     np.save(f"PCA_feat/val/X_val_pca_{k_folds}folds_{args.pca_dim}_{fold}.npy", X_val)
 
+        # 404, 2333, 3407
         torch.manual_seed(2333)
         if args.model == 'RndFrst':
             model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42, **param)
@@ -97,13 +98,13 @@ def cross_val(args, X, y, param, k_folds=5):
         
         
 
-def grid_search(args, X, y, params, id):
+def grid_search(args, X, y, params):
     keys = list(params.keys())
     values = [params[key] if isinstance(params[key], list) else [params[key]] for key in keys]
     
     best_params = None
     best_score = 0
-    results_df= pd.DataFrame(columns=list(params.keys())+['train_accuracy', 'val_accuracy', 'func_id'])
+    results_df= pd.DataFrame(columns=list(params.keys())+['train_accuracy', 'val_accuracy'])
     for combination in product(*values):
         param_combination = dict(zip(keys, combination))
         train_acc, val_acc = cross_val(args, X, y, param_combination)
@@ -111,19 +112,19 @@ def grid_search(args, X, y, params, id):
         if val_acc > best_score:
             best_score = val_acc
             best_params = param_combination
-        new_row = pd.Series({**param_combination, 'train_accuracy': train_acc, 'val_accuracy': val_acc, 'func_id': id})
+        new_row = pd.Series({**param_combination, 'train_accuracy': train_acc, 'val_accuracy': val_acc})
         if results_df.empty:
             results_df = new_row.to_frame().T
         else:
             results_df = pd.concat([results_df, new_row.to_frame().T], ignore_index=True)
 
-    results_df.to_csv(f"results/{id}_{args.result_file}", index=False)
+    results_df.to_csv(f"results/{args.result_file}", index=False)
     print(f"Best validation accuracy: {best_score}, Best params: {best_params}")
         
 
         
 
-def train_val(args, X, y, id=0):
+def train_val(args, X, y):
     if args.model == 'RndFrst':
         params = {}
         # model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42)
@@ -147,10 +148,46 @@ def train_val(args, X, y, id=0):
         }
         # model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
+        # params = {
+        #     'hidden_size': 120,
+        #     'drop_rate': 0.8,
+        #     'weight_decay': 1e-6,
+        #     'lr': 1e-3,
+        #     'batch_size': 128,
+        #     'epoch_num': 25,
+        #     'mask_prob': 0
+        # }
+        # params = {
+        #     'hidden_size': 200,
+        #     'drop_rate': 0.9,
+        #     'weight_decay': 1e-7,
+        #     'lr': 8e-4,
+        #     'batch_size': 256,
+        #     'epoch_num': 65,
+        #     'mask_prob': 0
+        # }
+        # params = {
+        #     'hidden_size': 1024,
+        #     'drop_rate': 0.9,
+        #     'weight_decay': 3e-6,
+        #     'lr': 1e-3,
+        #     'batch_size': 256,
+        #     'epoch_num': 25,
+        #     'mask_prob': 0
+        # }
+        # params = {
+        #     'hidden_size': 448,
+        #     'drop_rate': 0.95,
+        #     'weight_decay': 3e-8,
+        #     'lr': 1e-3,
+        #     'batch_size': 256,
+        #     'epoch_num': 75,
+        #     'mask_prob': 0
+        # }
         params = {
             'hidden_size': 640,
             'drop_rate': 0.95,
-            'weight_decay': 3e-8,
+            'weight_decay': 1e-8,
             'lr': 1e-3,
             'batch_size': 256,
             'epoch_num': 70,
@@ -159,12 +196,12 @@ def train_val(args, X, y, id=0):
         # -------- resNetMLP params: --------
         # params = {
         #     'resNet': True,
-        #     'hidden_size': 640,
-        #     'drop_rate': 0.95,
+        #     'hidden_size': 1000,
+        #     'drop_rate': 0.75,
         #     'weight_decay': 3e-8,
-        #     'lr': 1e-4,
-        #     'batch_size': 128,
-        #     'epoch_num': 400,
+        #     'lr': 5e-4,
+        #     'batch_size': 512,
+        #     'epoch_num': 20,
         #     'mask_prob': 0
         # }
         
@@ -173,6 +210,6 @@ def train_val(args, X, y, id=0):
         raise ValueError('model not supported')
         
     start_time = time.time()
-    grid_search(args, X, y, params, id)
+    grid_search(args, X, y, params)
     end_time = time.time()
     print(f"Total grid search time: {end_time - start_time:.2f}s")

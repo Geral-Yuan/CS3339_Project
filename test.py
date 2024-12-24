@@ -21,29 +21,36 @@ def main(args):
     with open('data/train_feature.pkl', 'rb') as f:
         X_train = pickle.load(f).toarray()
         
-    X_train = np.sqrt(1-(1-X_train)**2)
+    a = 1.0
+    X_train = np.sqrt(1-(1-X_train/a)**2)
     # X_train = np.sqrt(X_train)
     
     y_train = np.load('data/train_labels.npy')
-    
-    import warnings
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    
-    from imblearn.over_sampling import SMOTE
-    print("Original data shape:", X_train.shape, y_train.shape)
-    X_train, y_train = SMOTE(random_state=42).fit_resample(X_train, y_train) # To figure out good seed
-    print("SMOTE data shape:", X_train.shape, y_train.shape)
     
     label_distribution = []
     for i in range(20):
         label_distribution.append((y_train == i).sum().item())
         
     print("Label distribution:", label_distribution)
+    
+    # import warnings
+    # warnings.filterwarnings("ignore", category=FutureWarning)
+    
+    # from imblearn.over_sampling import SMOTE
+    # print("Original data shape:", X_train.shape, y_train.shape)
+    # X_train, y_train = SMOTE(random_state=42).fit_resample(X_train, y_train)
+    # print("SMOTE data shape:", X_train.shape, y_train.shape)
+    
+    # label_distribution = []
+    # for i in range(20):
+    #     label_distribution.append((y_train == i).sum().item())
+        
+    # print("Label distribution:", label_distribution)
         
     with open('data/test_feature.pkl', 'rb') as f:
         X_test = pickle.load(f).toarray()
         
-    X_test= np.sqrt(1-(1-X_test)**2)
+    X_test= np.sqrt(1-(1-X_test/a)**2)
     # X_test = np.sqrt(X_test)
     
     if args.use_pca:
@@ -79,19 +86,19 @@ def main(args):
     elif args.model == 'KNN':
         model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
-        MLP_args = {
+        MLP_params = {
             'input_size': X_train.shape[1],
             'output_size': 20,
-            'hidden_size': 640,
+            'hidden_size': 448,
             'drop_rate': 0.95,
             'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 70,
+            'epoch_num': 60,
             'mask_prob': 0
         }
-        model = MLPClassifier(**MLP_args)
-        print(f"MLP model with args {MLP_args}")
+        model = MLPClassifier(**MLP_params)
+        print(f"MLP model with args {MLP_params}")
     else:
         raise ValueError('model not supported')
         

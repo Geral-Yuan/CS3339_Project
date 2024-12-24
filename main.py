@@ -25,30 +25,16 @@ def main(args):
         X = pickle.load(f).toarray()
     
     y = np.load('data/train_labels.npy')
-    
-    # default 0.91223
-    
-    # X = X[:, X.max(axis=0) > 1e-6]
 
-    X = np.sqrt(X) # 0.92125 | 0.92842
-    # X = X ** 0.25 # 0.92143 | 0.92858
-    # X = np.sqrt(1-(1-X)**2) # 0.92213 | 0.92842
-    # X[X > 1e-6] = -1/np.log(X[X > 1e-6]) # 0.91957
+    # X = np.sqrt(X) # 0.925049, 80
+    a = 1.0 # 0.925845, 70
+    # a = 1.1 # 0.926286, 60
+    # a = 1.3 # 0.926286, 70/75
+    # a = 1.5 # 0.925933, 75
+    X = np.sqrt(1-(1-X/a)**2)
     
-    # offset = 0
-    # scale = 1
-    # N = 40
-    # for i in range(N):
-    #     X[(X > i/N)&(X < (i+1)/N)] = (X[(X > i/N)&(X < (i+1)/N)] - i/N) * scale + offset
-    #     offset += scale / N
-    #     scale -= 1 / N
-        
-    # X = np.log(X+3e-3)
-    # X -= X.min(axis=0)
-    # X /= X.max(axis=0)
     
-    # X = np.log1p(X) # 0.91302
-    # X = np.log1p(X*np.e) # 0.91904
+    # X = X ** 0.25 # 0.924784, 80
     
     # import warnings
     # warnings.filterwarnings("ignore", category=FutureWarning)
@@ -60,35 +46,29 @@ def main(args):
     # print("BorderlineSMOTE data shape:", X.shape, y.shape)
     
     # from imblearn.over_sampling import SMOTE
+    # random_state = 114514
+    # print("SMOTE random state:", random_state)
     # print("Original data shape:", X.shape, y.shape)
-    # X, y = SMOTE(random_state=42).fit_resample(X, y)
+    # X, y = SMOTE(random_state=random_state).fit_resample(X, y)
     # print("SMOTE data shape:", X.shape, y.shape)
-    
-    # for i in range(3):
-    #     if i == 0:
-    #         X = np.sqrt(X)
-    #     elif i == 1:
-    #         X = X ** 0.25
-    #     elif i == 2:
-    #         X = np.sqrt(1-(1-X)**2)
-    #     train_val(args, X, y, i)
-    #     with open('data/train_feature.pkl', 'rb') as f:
-    #         X = pickle.load(f).toarray()
 
     train_val(args, X, y)
 
 if __name__ == '__main__':
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='MLP', help='Model to use (default: MLP)')
     parser.add_argument('--use_pca', action='store_true', help='Enable PCA (default: False)')
     parser.add_argument('--pca_dim', type=int, default=500, help='PCA dimension (default: 500)')
     parser.add_argument('--load_pca', action='store_true', help='Load PCA feature (default: False)')
     parser.add_argument('--save_pca', action='store_true', help='Save PCA feature (default: False)')
-    parser.add_argument('--log_file', type=str, default="log.txt", help='Log file (default: log.txt)')
+    parser.add_argument('--log_file', type=str, default="log.log", help='Log file (default: log.txt)')
     parser.add_argument('--result_file', type=str, default=f"{timestamp}.csv", help='Result file (default: result.txt)')
+    parser.add_argument('--timestamp', type=str, default=timestamp, help='Timestamp (default: current time get from system)')
+    parser.add_argument('--save_model', action='store_true', help='Save model with highest accuracy on the validation set (default: False)')
     args = parser.parse_args()
-    log_file = open(args.log_file, "a")
+    log_path = "logs/"+args.log_file
+    log_file = open(log_path, "a")
     sys.stdout = Tee(log_file)
     print("-"*100)
     print(f"{timestamp} run with arguments: {args}")
