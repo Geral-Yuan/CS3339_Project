@@ -5,8 +5,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn.base import ClassifierMixin,BaseEstimator
 from tqdm import tqdm
 
-from .utils import MaskedDataset
-
 class MLP(nn.Module):
     def __init__(self, input_size, output_size, hidden_size=128, drop_rate=0.5):
         super(MLP, self).__init__()
@@ -50,7 +48,7 @@ class resNetMLP(nn.Module):
         return x
 
 class MLPClassifier(ClassifierMixin, BaseEstimator, nn.Module):
-    def __init__(self, input_size, output_size, resNet=False, hidden_size=128, drop_rate=0.5, weight_decay=0.0, lr=0.001, batch_size=128, epoch_num=10, mask_prob=0.2):
+    def __init__(self, input_size, output_size, resNet=False, hidden_size=128, drop_rate=0.5, weight_decay=0.0, lr=0.001, batch_size=128, epoch_num=10):
         super(MLPClassifier, self).__init__()
         if resNet:
             self.model = resNetMLP(input_size, output_size, hidden_size, drop_rate)
@@ -60,37 +58,28 @@ class MLPClassifier(ClassifierMixin, BaseEstimator, nn.Module):
         self.lr = lr
         self.batch_size = batch_size
         self.epoch_num = epoch_num
-        self.mask_prob = mask_prob
 
-    def fit(self, train_feature, train_label):
-        # total_cnt = train_label.shape[0]
+    def fit(self, train_feature, train_label, val_feature=None, val_label=None):
         label_cnt = []
         for i in range(20):
             label_cnt.append((train_label == i).sum().item())
-        # class_weights = [total_cnt / label_cnt[i] for i in range(20)]
-        # class_weights = [1/torch.log1p(torch.tensor(label_cnt[i], dtype=torch.float32).cuda()) for i in range(20)]
-        class_weights = [1/torch.sqrt(torch.tensor(label_cnt[i])) for i in range(20)]
+        
+        total_cnt = train_label.shape[0]
+        class_weights = [total_cnt / label_cnt[i] for i in range(20)]
         
         optimizer = Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float32).cuda())
-        # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50], gamma=0.5)
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=0.01)
 
-        train_feature = torch.tensor(train_feature, dtype=torch.float32).cuda()
-        train_label = torch.tensor(train_label, dtype=torch.long).cuda()
+        train_feature_tensor = torch.tensor(train_feature, dtype=torch.float32).cuda()
+        train_label_tensor = torch.tensor(train_label, dtype=torch.long).cuda()
 
-        epsilon = 1e-3
-        if self.mask_prob > epsilon:
-            dataset = MaskedDataset(train_feature, train_label, mask_prob=self.mask_prob)
-        else:
-            dataset = TensorDataset(train_feature, train_label)
+        dataset = TensorDataset(train_feature_tensor, train_label_tensor)
 
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         self.model = self.model.cuda().train()
 
-        for epoch in tqdm(range(self.epoch_num)):
+        for epoch in tqdm(range(self.epoch_num)) if val_feature is None or val_label is None else range(self.epoch_num):
             for batch_features, batch_labels in dataloader:
                 batch_features = batch_features
                 batch_labels = batch_labels
@@ -100,9 +89,13 @@ class MLPClassifier(ClassifierMixin, BaseEstimator, nn.Module):
                 loss = criterion(output, batch_labels)
                 loss.backward()
                 optimizer.step()
-            if self.mask_prob > epsilon:
-                dataset.refresh_mask()
-            # scheduler.step()
+            if val_feature is not None and val_label is not None:
+                self.model.eval()
+                with torch.no_grad():
+                    train_accuracy = self.score(train_feature, train_label)
+                    val_accuracy = self.score(val_feature, val_label)
+                self.model.train()
+                print(f"Epoch {epoch+1}/{self.epoch_num}, train accuracy: {train_accuracy:.6f}, validation accuracy: {val_accuracy:.6f}")
 
     def predict(self, test_features):
         test_features = torch.tensor(test_features, dtype=torch.float32).cuda()
