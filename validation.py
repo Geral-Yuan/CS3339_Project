@@ -5,11 +5,7 @@ import torch
 ### import packages from sklearn
 from sklearn.decomposition import PCA
 # from sklearn.decomposition import TruncatedSVD
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-# from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.neural_network import MLPClassifier
 
 from sklearn.model_selection import KFold
 from itertools import product
@@ -17,11 +13,12 @@ from itertools import product
 ### import packages from self-defined model
 from model.mlp import MLPClassifier
 from model.lr import LogisticRegression
+from model.svm import MultiKernelClassSVMClassifier
 
 import time
 
-def cross_val(args, X, y, param, k_folds=5):
-    print(f"Cross validation with parameters: {param}")
+def cross_val(args, X, y, params, k_folds=5):
+    print(f"Cross validation with parameters: {params}")
     kfold = KFold(n_splits=k_folds, shuffle=True, random_state=42)
     train_accuracy_list = []
     val_accuracy_list = []
@@ -30,23 +27,6 @@ def cross_val(args, X, y, param, k_folds=5):
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
-        # import warnings
-        # warnings.filterwarnings("ignore", category=FutureWarning)
-        
-        # from imblearn.over_sampling import SMOTE
-        # random_state = 114514
-        # print("SMOTE random state:", random_state)
-        # smote = SMOTE(random_state=random_state, k_neighbors=3)
-        # print("Original data shape:", X_train.shape, y_train.shape)
-        # X_train, y_train = smote.fit_resample(X_train, y_train)
-        # print("SMOTE data shape:", X_train.shape, y_train.shape)
-        
-        # from imblearn.over_sampling import BorderlineSMOTE
-        # borderline_smote = BorderlineSMOTE(random_state=42)
-        # print("Original data shape:", X_train.shape, y_train.shape)
-        # X_train, y_train = borderline_smote.fit_resample(X_train, y_train)
-        # print("BorderlineSMOTE data shape:", X_train.shape, y_train.shape)
-        
         if args.use_pca:
             if args.load_pca:
                 X_train = np.load(f"PCA_feat/val/X_train_pca_{k_folds}folds_{args.pca_dim}_{fold}.npy")
@@ -68,22 +48,22 @@ def cross_val(args, X, y, param, k_folds=5):
 
         # 404, 2333, 3407
         torch.manual_seed(2333)
-        if args.model == 'RndFrst':
-            model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42, **param)
+        if args.model == 'sklearn-SVM':
+            model = SVC(**params)
         elif args.model == 'SVM':
-            model = SVC(**param)
-        # elif args.model == 'mySVM':
-        #     model = KernelSVMClassifier(**param)
-        elif args.model == 'LogReg':
-            model = LogisticRegression(num_classes=20, **param)
-        elif args.model == 'KNN':
-            model = KNeighborsClassifier(**param)
+            model = MultiKernelClassSVMClassifier(**params)
+        elif args.model == 'LR':
+            model = LogisticRegression(num_classes=20, **params)
         elif args.model == 'MLP':
-            model = MLPClassifier(input_size=X_train.shape[1], output_size=20, **param)
+            model = MLPClassifier(input_size=X_train.shape[1], output_size=20, **params)
         else:
             raise ValueError('model not supported')
         
-        model.fit(X_train, y_train)
+        if args.val_when_train:
+            print(f"\n\nValidation during training fold {fold+1}/{k_folds}:")
+            model.fit(X_train, y_train, X_val, y_val)
+        else:
+            model.fit(X_train, y_train)
         train_accuracy = model.score(X_train, y_train)
         train_accuracy_list.append(train_accuracy)
         val_accuracy = model.score(X_val, y_val)
@@ -125,85 +105,37 @@ def grid_search(args, X, y, params):
         
 
 def train_val(args, X, y):
-    if args.model == 'RndFrst':
-        params = {}
-        # model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42)
-    elif args.model == 'SVM':
+    if args.model == 'sklearn-SVM':
         params = {
-            'kernel': ['linear', 'rbf', 'sigmoid']
+            'kernel': 'linear',
         }
-    # elif args.model == 'mySVM':
-    #     params = {
-    #         'kernel': 'rbf'
-    #     }
-    elif args.model == 'LogReg':
+        # params = {
+        #     'kernel': ['linear', 'rbf', 'sigmoid'],
+        #     'decision_function_shape': 'ovo'
+        # }
+    elif args.model == 'SVM':
+        # params = {
+        #     'kernel': 'rbf',
+        #     'gamma': 20,
+        # }
+        params = {
+            'kernel': 'linear'
+        }
+    elif args.model == 'LR':
         params = {
             'lr': 100,
             'num_iterations': 1000
         }
         # model = LogisticRegression(penalty='l1', solver='liblinear')
-    elif args.model == 'KNN':
-        params = {
-            'n_neighbors': 15
-        }
-        # model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
-        # params = {
-        #     'hidden_size': 120,
-        #     'drop_rate': 0.8,
-        #     'weight_decay': 1e-6,
-        #     'lr': 1e-3,
-        #     'batch_size': 128,
-        #     'epoch_num': 25,
-        #     'mask_prob': 0
-        # }
-        # params = {
-        #     'hidden_size': 200,
-        #     'drop_rate': 0.9,
-        #     'weight_decay': 1e-7,
-        #     'lr': 8e-4,
-        #     'batch_size': 256,
-        #     'epoch_num': 65,
-        #     'mask_prob': 0
-        # }
-        # params = {
-        #     'hidden_size': 1024,
-        #     'drop_rate': 0.9,
-        #     'weight_decay': 3e-6,
-        #     'lr': 1e-3,
-        #     'batch_size': 256,
-        #     'epoch_num': 25,
-        #     'mask_prob': 0
-        # }
-        # params = {
-        #     'hidden_size': 448,
-        #     'drop_rate': 0.95,
-        #     'weight_decay': 3e-8,
-        #     'lr': 1e-3,
-        #     'batch_size': 256,
-        #     'epoch_num': 75,
-        #     'mask_prob': 0
-        # }
         params = {
-            'hidden_size': 640,
+            'hidden_size': 448,
             'drop_rate': 0.95,
-            'weight_decay': 1e-8,
+            'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 70,
-            'mask_prob': 0
+            'epoch_num': 75,
         }
-        # -------- resNetMLP params: --------
-        # params = {
-        #     'resNet': True,
-        #     'hidden_size': 1000,
-        #     'drop_rate': 0.75,
-        #     'weight_decay': 3e-8,
-        #     'lr': 5e-4,
-        #     'batch_size': 512,
-        #     'epoch_num': 20,
-        #     'mask_prob': 0
-        # }
         
         print(f"Grid search with parameters: {params}")
     else:
