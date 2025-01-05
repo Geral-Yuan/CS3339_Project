@@ -1,3 +1,15 @@
 .vscode
-*.npy
+__pycache__
+
+PCA_feat
 submission
+results
+ref
+scripts
+saved_models
+*log*
+count_label.py
+t-SNE.ipynb
+data_visual.ipynb
+table.csv
+exp.py

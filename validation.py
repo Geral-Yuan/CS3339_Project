@@ -4,7 +4,6 @@ import torch
 
 ### import packages from sklearn
 from sklearn.decomposition import PCA
-# from sklearn.decomposition import TruncatedSVD
 from sklearn.svm import SVC
 
 from sklearn.model_selection import KFold
@@ -13,7 +12,7 @@ from itertools import product
 ### import packages from self-defined model
 from model.mlp import MLPClassifier
 from model.lr import LogisticRegression
-from model.svm import MultiKernelClassSVMClassifier
+from model.svm import MultiClassKernelSVMClassifier
 
 import time
 
@@ -51,7 +50,7 @@ def cross_val(args, X, y, params, k_folds=5):
         if args.model == 'sklearn-SVM':
             model = SVC(**params)
         elif args.model == 'SVM':
-            model = MultiKernelClassSVMClassifier(**params)
+            model = MultiClassKernelSVMClassifier(**params)
         elif args.model == 'LR':
             model = LogisticRegression(num_classes=20, **params)
         elif args.model == 'MLP':
@@ -60,6 +59,8 @@ def cross_val(args, X, y, params, k_folds=5):
             raise ValueError('model not supported')
         
         if args.val_when_train:
+            if args.model != 'MLP':
+                raise ValueError('Validation during training is only supported for MLP')
             print(f"\n\nValidation during training fold {fold+1}/{k_folds}:")
             model.fit(X_train, y_train, X_val, y_val)
         else:
@@ -107,40 +108,44 @@ def grid_search(args, X, y, params):
 def train_val(args, X, y):
     if args.model == 'sklearn-SVM':
         params = {
-            'kernel': 'linear',
+            'kernel': ['linear', 'rbf'],
         }
-        # params = {
-        #     'kernel': ['linear', 'rbf', 'sigmoid'],
-        #     'decision_function_shape': 'ovo'
-        # }
     elif args.model == 'SVM':
+        params = {
+            'kernel': 'linear'
+        }
         # params = {
         #     'kernel': 'rbf',
         #     'gamma': 20,
         # }
-        params = {
-            'kernel': 'linear'
-        }
     elif args.model == 'LR':
         params = {
-            'lr': 100,
-            'num_iterations': 1000
+            'lr': [50, 75, 100, 125, 150],
+            'num_iterations': [500, 750, 1000]
         }
-        # model = LogisticRegression(penalty='l1', solver='liblinear')
     elif args.model == 'MLP':
         params = {
-            'hidden_size': 448,
-            'drop_rate': 0.95,
-            'weight_decay': 3e-8,
+            'hidden_size': [448, 512, 576, 640],
+            'drop_rate': [0.6, 0.8, 0.9, 0.95],
+            'weight_decay': [3e-7, 1e-7, 3e-8, 1e-8, 0],
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 75,
+            'epoch_num': [45, 60, 75],
+            'resNet': [True, False]
         }
+        # params = {
+        #     'hidden_size': 448,
+        #     'drop_rate': 0.95,
+        #     'weight_decay': 3e-8,
+        #     'lr': 1e-3,
+        #     'batch_size': 256,
+        #     'epoch_num': 75,
+        # }
         
-        print(f"Grid search with parameters: {params}")
     else:
         raise ValueError('model not supported')
-        
+    
+    print(f"Grid search with parameters: {params}")
     start_time = time.time()
     grid_search(args, X, y, params)
     end_time = time.time()

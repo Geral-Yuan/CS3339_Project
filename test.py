@@ -4,15 +4,12 @@ import pickle
 
 ### import packages from sklearn
 from sklearn.decomposition import PCA
-# from sklearn.decomposition import TruncatedSVD
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.neural_network import MLPClassifier
 
 ### import packages from self-defined model
 from model.mlp import MLPClassifier
+from model.lr import LogisticRegression
+from model.svm import MultiClassKernelSVMClassifier
 
 import argparse
 import time
@@ -21,9 +18,8 @@ def main(args):
     with open('data/train_feature.pkl', 'rb') as f:
         X_train = pickle.load(f).toarray()
         
-    a = 1.0
-    X_train = np.sqrt(1-(1-X_train/a)**2)
-    # X_train = np.sqrt(X_train)
+    if args.preprocess:
+        X_train = np.sqrt(1-(1-X_train)**2)
     
     y_train = np.load('data/train_labels.npy')
     
@@ -33,25 +29,12 @@ def main(args):
         
     print("Label distribution:", label_distribution)
     
-    # import warnings
-    # warnings.filterwarnings("ignore", category=FutureWarning)
-    
-    # from imblearn.over_sampling import SMOTE
-    # print("Original data shape:", X_train.shape, y_train.shape)
-    # X_train, y_train = SMOTE(random_state=42).fit_resample(X_train, y_train)
-    # print("SMOTE data shape:", X_train.shape, y_train.shape)
-    
-    # label_distribution = []
-    # for i in range(20):
-    #     label_distribution.append((y_train == i).sum().item())
-        
-    # print("Label distribution:", label_distribution)
         
     with open('data/test_feature.pkl', 'rb') as f:
         X_test = pickle.load(f).toarray()
         
-    X_test= np.sqrt(1-(1-X_test/a)**2)
-    # X_test = np.sqrt(X_test)
+    if args.preprocess:
+        X_test= np.sqrt(1-(1-X_test)**2)
     
     if args.use_pca:
         if args.load_pca:
@@ -73,18 +56,14 @@ def main(args):
                 np.save(f"PCA_feat/test/X_test_pca_{args.pca_dim}.npy", X_test)
 
     torch.manual_seed(2333)
-    if args.model == 'RndFrst':
-        model = RandomForestClassifier(n_estimators=100, max_features='sqrt', random_state=42)
-    elif args.model == 'SVM-l':
+    if args.model == 'sklearn-SVM':
         model = SVC(kernel='linear')
-    elif args.model == 'SVM-r':
-        model = SVC(kernel='rbf')
-    elif args.model == 'SVM-s':
-        model = SVC(kernel='sigmoid', coef0=1)
-    elif args.model == 'LogReg':
+        # model = SVC(kernel='rbf')
+    elif args.model == 'SVM':
+        model = MultiClassKernelSVMClassifier(kernel='linear')
+        # model = MultiClassKernelSVMClassifier(kernel='rbf', gamma=20)
+    elif args.model == 'LR':
         model = LogisticRegression(penalty='l1', solver='liblinear')
-    elif args.model == 'KNN':
-        model = KNeighborsClassifier(n_neighbors=15)
     elif args.model == 'MLP':
         MLP_params = {
             'input_size': X_train.shape[1],
@@ -94,8 +73,7 @@ def main(args):
             'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 60,
-            'mask_prob': 0
+            'epoch_num': 75,
         }
         model = MLPClassifier(**MLP_params)
         print(f"MLP model with args {MLP_params}")
@@ -136,5 +114,6 @@ if __name__ == '__main__':
     parser.add_argument('--load_pca', action='store_true', help='Load PCA feature (default: False)')
     parser.add_argument('--save_pca', action='store_true', help='Save PCA feature (default: False)')
     parser.add_argument('--saved_model', type=str, default=None, help='Use saved model (default: None)')
+    parser.add_argument('--preprocess', action='store_true', help='Preprocess data (default: False)')
     args = parser.parse_args()
     main(args)

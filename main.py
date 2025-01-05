@@ -26,31 +26,8 @@ def main(args):
     
     y = np.load('data/train_labels.npy')
 
-    # X = np.sqrt(X) # 0.925049, 80
-    a = 1.0 # 0.925845, 70
-    # a = 1.1 # 0.926286, 60
-    # a = 1.3 # 0.926286, 70/75
-    # a = 1.5 # 0.925933, 75
-    X = np.sqrt(1-(1-X/a)**2)
-    
-    
-    # X = X ** 0.25 # 0.924784, 80
-    
-    # import warnings
-    # warnings.filterwarnings("ignore", category=FutureWarning)
-    
-    # from imblearn.over_sampling import BorderlineSMOTE
-    # borderline_smote = BorderlineSMOTE(random_state=42)
-    # print("Original data shape:", X.shape, y.shape)
-    # X, y = borderline_smote.fit_resample(X, y)
-    # print("BorderlineSMOTE data shape:", X.shape, y.shape)
-    
-    # from imblearn.over_sampling import SMOTE
-    # random_state = 114514
-    # print("SMOTE random state:", random_state)
-    # print("Original data shape:", X.shape, y.shape)
-    # X, y = SMOTE(random_state=random_state).fit_resample(X, y)
-    # print("SMOTE data shape:", X.shape, y.shape)
+    if args.preprocess:
+        X = np.sqrt(1-(1-X)**2)
 
     train_val(args, X, y)
 
@@ -66,6 +43,8 @@ if __name__ == '__main__':
     parser.add_argument('--result_file', type=str, default=f"{timestamp}.csv", help='Result file (default: result.txt)')
     parser.add_argument('--timestamp', type=str, default=timestamp, help='Timestamp (default: current time get from system)')
     parser.add_argument('--save_model', action='store_true', help='Save model with highest accuracy on the validation set (default: False)')
+    parser.add_argument('--val_when_train', action='store_true', help='Validate when training (default: False)')
+    parser.add_argument('--preprocess', action='store_true', help='Preprocess data (default: False)')
     args = parser.parse_args()
     log_path = "logs/"+args.log_file
     log_file = open(log_path, "a")

@@ -94,7 +94,7 @@ class KernelSVMClassifier(ClassifierMixin,BaseEstimator):
             return (self.kernel_func(X.T, self.SV_X.T)*self.SV_alpha.reshape(1,-1)*self.SV_y.reshape(1,-1) + self.b).sum(axis=1)
   
     
-class MultiKernelClassSVMClassifier(ClassifierMixin,BaseEstimator):
+class MultiClassKernelSVMClassifier(ClassifierMixin,BaseEstimator):
     def __init__(self, kernel='linear', C=1.0, gamma='scale', decision_function_shape='ovr'):
         self.kernel = kernel
         self.C = C
