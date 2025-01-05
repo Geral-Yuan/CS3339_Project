@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import pickle
+import os
 
 ### import packages from sklearn
 from sklearn.decomposition import PCA
@@ -52,6 +53,7 @@ def main(args):
             X_test = pca.transform(X_test)
             
             if args.save_pca:
+                os.makedirs('PCA_feat/test', exist_ok=True)
                 np.save(f"PCA_feat/test/X_train_pca_{args.pca_dim}.npy", X_train)
                 np.save(f"PCA_feat/test/X_test_pca_{args.pca_dim}.npy", X_test)
 
@@ -63,7 +65,7 @@ def main(args):
         model = MultiClassKernelSVMClassifier(kernel='linear')
         # model = MultiClassKernelSVMClassifier(kernel='rbf', gamma=20)
     elif args.model == 'LR':
-        model = LogisticRegression(penalty='l1', solver='liblinear')
+        model = LogisticRegression(lr=50, num_iterations=750)
     elif args.model == 'MLP':
         MLP_params = {
             'input_size': X_train.shape[1],
@@ -73,7 +75,7 @@ def main(args):
             'weight_decay': 3e-8,
             'lr': 1e-3,
             'batch_size': 256,
-            'epoch_num': 75,
+            'epoch_num': 60,
         }
         model = MLPClassifier(**MLP_params)
         print(f"MLP model with args {MLP_params}")
@@ -93,6 +95,7 @@ def main(args):
         print(f"Model has been loaded from {args.saved_model}")
 
     y_test = model.predict(X_test)
+    os.makedirs('submission', exist_ok=True)
     with open(f'submission/res_{args.model}.csv', 'w') as f:
         f.write('ID,label\n')
         for i in range(len(y_test)):

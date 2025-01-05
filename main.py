@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+import os
 
 from validation import train_val
 
@@ -46,6 +47,10 @@ if __name__ == '__main__':
     parser.add_argument('--val_when_train', action='store_true', help='Validate when training (default: False)')
     parser.add_argument('--preprocess', action='store_true', help='Preprocess data (default: False)')
     args = parser.parse_args()
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
+    if args.save_model:
+        os.makedirs("saved_models", exist_ok=True)
     log_path = "logs/"+args.log_file
     log_file = open(log_path, "a")
     sys.stdout = Tee(log_file)

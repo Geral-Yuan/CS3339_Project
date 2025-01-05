@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch
+import os
 
 ### import packages from sklearn
 from sklearn.decomposition import PCA
@@ -42,6 +43,7 @@ def cross_val(args, X, y, params, k_folds=5):
                 X_val = pca.transform(X_val)
                 
                 if args.save_pca:
+                    os.makedirs('PCA_feat/val', exist_ok=True)
                     np.save(f"PCA_feat/val/X_train_pca_{k_folds}folds_{args.pca_dim}_{fold}.npy", X_train)
                     np.save(f"PCA_feat/val/X_val_pca_{k_folds}folds_{args.pca_dim}_{fold}.npy", X_val)
 
@@ -119,28 +121,32 @@ def train_val(args, X, y):
         #     'gamma': 20,
         # }
     elif args.model == 'LR':
+        # params = {
+        #     'lr': [50, 75, 100, 125, 150],
+        #     'num_iterations': [500, 750, 1000]
+        # }
         params = {
-            'lr': [50, 75, 100, 125, 150],
-            'num_iterations': [500, 750, 1000]
+            'lr': 50,
+            'num_iterations': 750
         }
     elif args.model == 'MLP':
-        params = {
-            'hidden_size': [448, 512, 576, 640],
-            'drop_rate': [0.6, 0.8, 0.9, 0.95],
-            'weight_decay': [3e-7, 1e-7, 3e-8, 1e-8, 0],
-            'lr': 1e-3,
-            'batch_size': 256,
-            'epoch_num': [45, 60, 75],
-            'resNet': [True, False]
-        }
         # params = {
-        #     'hidden_size': 448,
-        #     'drop_rate': 0.95,
-        #     'weight_decay': 3e-8,
+        #     'hidden_size': [448, 512, 576, 640],
+        #     'drop_rate': [0.6, 0.8, 0.9, 0.95],
+        #     'weight_decay': [3e-7, 1e-7, 3e-8, 1e-8, 0],
         #     'lr': 1e-3,
         #     'batch_size': 256,
-        #     'epoch_num': 75,
+        #     'epoch_num': [45, 60, 75],
+        #     'resNet': [True, False]
         # }
+        params = {
+            'hidden_size': 448,
+            'drop_rate': 0.95,
+            'weight_decay': 3e-8,
+            'lr': 1e-3,
+            'batch_size': 256,
+            'epoch_num': 75,
+        }
         
     else:
         raise ValueError('model not supported')
